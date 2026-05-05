@@ -26,6 +26,12 @@ export const OBSTACLE_MAX_H = 90;
 export const COIN_SIZE = 22;
 export const POWERUP_SIZE = 34;
 
+// Brake coin — blue coin that slows speed when collected
+export const SLOW_COIN_CHANCE = 0.25;          // 25% of spawned coins are brake coins
+export const SLOW_COIN_DURATION = 4000;        // 4 seconds of reduced speed
+export const SLOW_COIN_COLOR = '#00aaff';
+export const SLOW_COIN_GLOW = '#0055ff';
+
 export const INITIAL_SPEED = 2.5;
 export const SPEED_INCREMENT = 0.00015;  // very gentle continuous drift
 export const MAX_SPEED = 20;

@@ -26,6 +26,7 @@ import {
   COIN_SPAWN_INTERVAL, POWERUP_SPAWN_CHANCE,
   SHIELD_DURATION, MAGNET_DURATION, MULTIPLIER_DURATION, SLOW_DURATION,
   MAGNET_RADIUS, INITIAL_LIVES, SCORE_PER_SECOND, COIN_VALUE,
+  SLOW_COIN_CHANCE, SLOW_COIN_DURATION, SLOW_COIN_COLOR, SLOW_COIN_GLOW,
   LANE_SWITCH_DURATION,
   COLORS, CHARACTERS,
   type ObstacleType, type PowerUpType,
@@ -50,6 +51,7 @@ interface Coin {
   lane: number;
   y: number;
   collected: boolean;
+  slow: boolean;   // brake coin — slows speed on collection
 }
 
 interface PowerUpEntity {
@@ -406,11 +408,13 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     if (gs.coinTimer >= COIN_SPAWN_INTERVAL) {
       gs.coinTimer = 0;
       gs.entityId++;
+      const isSlow = Math.random() < SLOW_COIN_CHANCE;
       gs.coins.push({
         id: gs.entityId,
         lane: randomLane(),
         y: -COIN_SIZE,
         collected: false,
+        slow: isSlow,
       });
     }
 
@@ -448,8 +452,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
       const threshold = hasMagnet ? MAGNET_RADIUS : COIN_SIZE + 10;
       if (dist < threshold) {
         coin.collected = true;
-        gs.coinsEarned += Math.round(COIN_VALUE * coinMultiplier * (1 + character.coinBonus));
-        triggerHaptic('light');
+        if (coin.slow) {
+          // Brake coin — trigger slow-time effect
+          ap.slow = Math.max(ap.slow, SLOW_COIN_DURATION);
+          triggerHaptic('medium');
+        } else {
+          gs.coinsEarned += Math.round(COIN_VALUE * coinMultiplier * (1 + character.coinBonus));
+          triggerHaptic('light');
+        }
       }
     });
 
@@ -611,9 +621,16 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
             {
               left: LANE_X[coin.lane] - COIN_SIZE / 2,
               top: coin.y,
+              backgroundColor: coin.slow ? SLOW_COIN_COLOR : COLORS.coin,
+              borderColor: coin.slow ? SLOW_COIN_GLOW : COLORS.coinGlow,
+              shadowColor: coin.slow ? SLOW_COIN_GLOW : COLORS.coinGlow,
             },
           ]}
-        />
+        >
+          {coin.slow && (
+            <Text style={styles.slowCoinIcon}>❄</Text>
+          )}
+        </View>
       ))}
 
       {/* Power-ups */}
@@ -884,15 +901,15 @@ const styles = StyleSheet.create({
     width: COIN_SIZE,
     height: COIN_SIZE,
     borderRadius: COIN_SIZE / 2,
-    backgroundColor: COLORS.coin,
-    shadowColor: COLORS.coinGlow,
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 10,
     shadowOpacity: 1,
     elevation: 6,
     borderWidth: 2,
-    borderColor: COLORS.coinGlow,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  slowCoinIcon: { fontSize: 11, lineHeight: 13 },
   powerUp: {
     position: 'absolute',
     width: POWERUP_SIZE,
