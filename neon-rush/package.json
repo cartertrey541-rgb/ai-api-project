@@ -18,12 +18,13 @@
     "expo-av": "*",
     "expo-splash-screen": "*",
     "expo-font": "*",
+    "babel-preset-expo": "*",
     "@expo/vector-icons": "*",
     "@react-native-async-storage/async-storage": "*",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/stack": "^6.4.1",
-    "react": "18.3.1",
-    "react-native": "0.77.2",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
     "react-native-screens": "*",
     "react-native-safe-area-context": "*",
     "react-native-gesture-handler": "*",
@@ -32,8 +33,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.0",
-    "@types/react": "~18.3.12",
-    "babel-preset-expo": "*",
+    "@types/react": "^19.1.0",
     "typescript": "^5.3.3"
   },
   "private": true
