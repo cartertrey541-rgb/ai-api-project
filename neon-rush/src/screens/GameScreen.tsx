@@ -21,8 +21,9 @@ import {
   OBSTACLE_W, OBSTACLE_MIN_H, OBSTACLE_MAX_H,
   COIN_SIZE, POWERUP_SIZE,
   INITIAL_SPEED, SPEED_INCREMENT, MAX_SPEED,
-  SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX, COIN_SPAWN_INTERVAL,
-  POWERUP_SPAWN_CHANCE,
+  MAX_LEVEL, SCORE_PER_LEVEL, SPEED_PER_LEVEL,
+  SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX, SPAWN_INTERVAL_REDUCTION,
+  COIN_SPAWN_INTERVAL, POWERUP_SPAWN_CHANCE,
   SHIELD_DURATION, MAGNET_DURATION, MULTIPLIER_DURATION, SLOW_DURATION,
   MAGNET_RADIUS, INITIAL_LIVES, SCORE_PER_SECOND, COIN_VALUE,
   LANE_SWITCH_DURATION,
@@ -88,6 +89,8 @@ interface GameState {
   lives: number;
   speed: number;
   distance: number;
+  level: number;
+  levelUpTimer: number;
   activePowerUps: ActivePowerUps;
   isRunning: boolean;
   isPaused: boolean;
@@ -169,6 +172,8 @@ function makeInitialState(): GameState {
     lives: INITIAL_LIVES,
     speed: INITIAL_SPEED,
     distance: 0,
+    level: 1,
+    levelUpTimer: 0,
     activePowerUps: { shield: 0, magnet: 0, multiplier: 0, slow: 0 },
     isRunning: true,
     isPaused: false,
@@ -305,10 +310,25 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
 
     const slow = gs.activePowerUps.slow > 0;
     const delta = slow ? rawDelta * 0.45 : rawDelta;
+
+    // ── Level progression ──
+    const newLevel = Math.min(MAX_LEVEL, Math.floor(gs.score / SCORE_PER_LEVEL) + 1);
+    if (newLevel > gs.level) {
+      gs.level = newLevel;
+      gs.levelUpTimer = 2200;
+      triggerHaptic('heavy');
+    }
+    if (gs.levelUpTimer > 0) gs.levelUpTimer -= rawDelta;
+
+    // ── Speed = level base + tiny continuous drift ──
+    const levelSpeed = INITIAL_SPEED + (gs.level - 1) * SPEED_PER_LEVEL;
+    gs.speed = Math.min(MAX_SPEED, levelSpeed + gs.distance * SPEED_INCREMENT);
     const speed = gs.speed * (1 + character.speedBonus);
 
-    // ── Update speed & distance ──
-    gs.speed = Math.min(MAX_SPEED, gs.speed + SPEED_INCREMENT * rawDelta);
+    // ── Spawn interval tightens each level ──
+    const spawnMin = Math.max(600, SPAWN_INTERVAL_MIN - (gs.level - 1) * SPAWN_INTERVAL_REDUCTION);
+    const spawnMax = Math.max(900, SPAWN_INTERVAL_MAX - (gs.level - 1) * SPAWN_INTERVAL_REDUCTION);
+
     gs.distance += speed * delta * 0.05;
     gs.score = Math.floor(gs.distance) + gs.coinsEarned * 2;
 
@@ -349,14 +369,14 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     gs.obstacleTimer += rawDelta;
     if (gs.obstacleTimer >= gs.nextObstacleIn) {
       gs.obstacleTimer = 0;
-      gs.nextObstacleIn = randomInterval();
+      gs.nextObstacleIn = Math.random() * (spawnMax - spawnMin) + spawnMin;
 
       const type = (['barrier', 'drone', 'laser', 'spike'] as ObstacleType[])[
         Math.floor(Math.random() * 4)
       ];
 
-      // Sometimes block 2 lanes
-      const blockTwo = Math.random() < 0.3 && gs.speed > 9;
+      // Double-lane blocks only from level 5+
+      const blockTwo = gs.level >= 5 && Math.random() < 0.25;
       const lane1 = randomLane();
       gs.entityId++;
       gs.obstacles.push({
@@ -713,22 +733,47 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           </NeonText>
         </View>
 
-        <TouchableWithoutFeedback onPress={handlePause}>
-          <View style={styles.pauseBtn}>
-            <Text style={styles.pauseIcon}>⏸</Text>
+        <View style={styles.hudRight}>
+          {/* Level badge */}
+          <View style={styles.levelBadge}>
+            <NeonText size={9} color={COLORS.textDim}>LVL</NeonText>
+            <NeonText size={22} color={COLORS.neonYellow}>{gs.level}</NeonText>
           </View>
-        </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={handlePause}>
+            <View style={styles.pauseBtn}>
+              <Text style={styles.pauseIcon}>⏸</Text>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
       </View>
 
-      {/* Speed indicator */}
-      <View style={styles.speedBar}>
+      {/* Level progress bar */}
+      <View style={styles.levelBar}>
         <View
           style={[
-            styles.speedFill,
-            { width: `${((gs.speed - INITIAL_SPEED) / (MAX_SPEED - INITIAL_SPEED)) * 100}%` },
+            styles.levelFill,
+            {
+              width: `${((gs.score % SCORE_PER_LEVEL) / SCORE_PER_LEVEL) * 100}%`,
+              backgroundColor: gs.level >= MAX_LEVEL ? COLORS.neonYellow : COLORS.neonPurple,
+            },
           ]}
         />
       </View>
+
+      {/* LEVEL UP banner */}
+      {gs.levelUpTimer > 0 && (
+        <View style={styles.levelUpBanner} pointerEvents="none">
+          <NeonText size={11} color={COLORS.neonYellow} style={styles.levelUpSub}>
+            LEVEL UP!
+          </NeonText>
+          <NeonText size={48} color={COLORS.neonYellow} style={styles.levelUpNum}>
+            {gs.level}
+          </NeonText>
+          <NeonText size={11} color={COLORS.textDim} style={styles.levelUpSub}>
+            {gs.level >= MAX_LEVEL ? 'MAX SPEED!' : `Speed +${SPEED_PER_LEVEL.toFixed(1)}`}
+          </NeonText>
+        </View>
+      )}
 
       {/* Pause modal */}
       {showPauseModal && (
@@ -872,6 +917,33 @@ const styles = StyleSheet.create({
   },
   hudLeft: { flex: 1, gap: 6 },
   hudCenter: { flex: 1, alignItems: 'center' },
+  hudRight: { alignItems: 'center', gap: 4 },
+  levelBadge: {
+    alignItems: 'center',
+    backgroundColor: '#1a1a3a',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: COLORS.neonYellow + '55',
+  },
+  levelUpBanner: {
+    position: 'absolute',
+    top: '30%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  levelUpNum: {
+    fontWeight: '900',
+    letterSpacing: 4,
+    textShadowColor: COLORS.neonYellow,
+    textShadowRadius: 30,
+    textShadowOffset: { width: 0, height: 0 },
+  },
+  levelUpSub: { letterSpacing: 3 },
   livesRow: { flexDirection: 'row', gap: 4 },
   heart: { fontSize: 18 },
   powerUpRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
@@ -895,18 +967,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pauseIcon: { fontSize: 22 },
-  speedBar: {
+  levelBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 3,
+    height: 4,
     backgroundColor: '#1a1a3a',
   },
-  speedFill: {
+  levelFill: {
     height: '100%',
-    backgroundColor: COLORS.neonCyan,
-    shadowColor: COLORS.neonCyan,
     shadowRadius: 4,
     shadowOpacity: 1,
   },

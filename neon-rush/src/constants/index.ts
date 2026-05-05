@@ -26,12 +26,19 @@ export const OBSTACLE_MAX_H = 90;
 export const COIN_SIZE = 22;
 export const POWERUP_SIZE = 34;
 
-export const INITIAL_SPEED = 6;
-export const SPEED_INCREMENT = 0.0012;
-export const MAX_SPEED = 18;
+export const INITIAL_SPEED = 2.5;
+export const SPEED_INCREMENT = 0.00015;  // very gentle continuous drift
+export const MAX_SPEED = 20;
 
-export const SPAWN_INTERVAL_MIN = 900;
-export const SPAWN_INTERVAL_MAX = 1600;
+// Level system (Tetris-style)
+export const MAX_LEVEL = 15;
+export const SCORE_PER_LEVEL = 500;      // level up every 500 points
+export const SPEED_PER_LEVEL = 1.2;      // speed added per level
+
+// Spawn intervals shrink as level rises
+export const SPAWN_INTERVAL_MIN = 1800;  // level 1 (very spaced out)
+export const SPAWN_INTERVAL_MAX = 2800;
+export const SPAWN_INTERVAL_REDUCTION = 70; // ms removed per level
 export const COIN_SPAWN_INTERVAL = 600;
 export const POWERUP_SPAWN_CHANCE = 0.12;
 
