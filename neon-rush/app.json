@@ -40,12 +40,19 @@
         {
           "globals": ["__scanCodes"]
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1994019770206439~REPLACE_WITH_APP_ID"
+        }
       ]
     ],
     "extra": {
-      "admobBannerIdAndroid": "ca-app-pub-3940256099942544/6300978111",
-      "admobInterstitialIdAndroid": "ca-app-pub-3940256099942544/1033173712",
-      "admobRewardedIdAndroid": "ca-app-pub-3940256099942544/5224354917",
+      "admobPublisherId": "ca-app-pub-1994019770206439",
+      "admobBannerIdAndroid": "ca-app-pub-1994019770206439/REPLACE_WITH_BANNER_UNIT_ID",
+      "admobInterstitialIdAndroid": "ca-app-pub-1994019770206439/4253918857",
+      "admobRewardedIdAndroid": "ca-app-pub-1994019770206439/5567000527",
       "eas": {
         "projectId": "your-project-id-here"
       }
