@@ -23,10 +23,7 @@
     "extra": {
       "admobPublisherId": "ca-app-pub-1994019770206439",
       "admobInterstitialIdAndroid": "ca-app-pub-1994019770206439/4253918857",
-      "admobRewardedIdAndroid": "ca-app-pub-1994019770206439/5567000527",
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
+      "admobRewardedIdAndroid": "ca-app-pub-1994019770206439/5567000527"
     }
   }
 }
