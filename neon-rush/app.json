@@ -29,24 +29,7 @@
     },
     "plugins": [
       "expo-font",
-      "expo-av",
-      ["expo-splash-screen", {
-        "backgroundColor": "#0a0a1a",
-        "image": "./assets/splash.png",
-        "imageWidth": 200
-      }],
-      [
-        "react-native-reanimated",
-        {
-          "globals": ["__scanCodes"]
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-1994019770206439~REPLACE_WITH_APP_ID"
-        }
-      ]
+      "expo-av"
     ],
     "extra": {
       "admobPublisherId": "ca-app-pub-1994019770206439",
