@@ -93,28 +93,29 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         ))}
       </View>
 
-      {/* Star field — using translateY, NOT top */}
+      {/* Star field — plain View owns left/top; Animated.View owns only transform */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {STARS.map((star, i) => (
-          <Animated.View
+          <View
             key={star.id}
-            style={{
-              position: 'absolute',
-              left: star.x,
-              top: star.y,
-              width: star.size,
-              height: star.size,
-              borderRadius: star.size / 2,
-              backgroundColor: '#ffffff',
-              opacity: star.opacity,
-              transform: [{
-                translateY: starAnims[i].interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, star.driftPx],
-                }),
-              }],
-            }}
-          />
+            style={{ position: 'absolute', left: star.x, top: star.y }}
+          >
+            <Animated.View
+              style={{
+                width: star.size,
+                height: star.size,
+                borderRadius: star.size / 2,
+                backgroundColor: '#ffffff',
+                opacity: star.opacity,
+                transform: [{
+                  translateY: starAnims[i].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, star.driftPx],
+                  }),
+                }],
+              }}
+            />
+          </View>
         ))}
       </View>
 
