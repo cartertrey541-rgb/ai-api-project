@@ -10,7 +10,13 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 export type RootStackParamList = {
   Home: undefined;
   Game: { characterId: string };
-  GameOver: { score: number; coinsEarned: number; isNewHighScore: boolean };
+  GameOver: {
+    score: number;
+    coinsEarned: number;
+    isNewHighScore: boolean;
+    levelComplete: boolean;
+    playerLevel: number;
+  };
   Shop: undefined;
   Settings: undefined;
 };

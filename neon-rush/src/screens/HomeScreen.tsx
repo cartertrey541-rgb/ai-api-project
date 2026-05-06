@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, StyleSheet, Animated, TouchableOpacity, Text,
-  StatusBar, ScrollView,
+  StatusBar, ScrollView, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,43 +10,47 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { NeonButton } from '../components/NeonButton';
 import { NeonText } from '../components/NeonText';
 import { storage, PlayerData } from '../services/StorageService';
-import { COLORS, CHARACTERS } from '../constants';
+import { COLORS, CHARACTERS, LEVEL_BASE_GOAL, LEVEL_GOAL_SCALING } from '../constants';
 
 type HomeNavProp = StackNavigationProp<RootStackParamList, 'Home'>;
 interface Props { navigation: HomeNavProp; }
 
-const STARS = Array.from({ length: 60 }, (_, i) => ({
+const { width: SW, height: SH } = Dimensions.get('window');
+
+// Stars use pixel values so translateY works with useNativeDriver: true
+const STARS = Array.from({ length: 50 }, (_, i) => ({
   id: i,
-  x: Math.random() * 100,
-  y: Math.random() * 100,
+  x: Math.random() * SW,
+  y: Math.random() * SH,
   size: Math.random() * 2.5 + 0.5,
   opacity: Math.random() * 0.7 + 0.3,
-  speed: Math.random() * 0.3 + 0.1,
+  driftPx: (Math.random() * 0.12 + 0.05) * SH,
+  duration: Math.random() * 12000 + 8000,
+  delay: Math.random() * 4000,
 }));
+
+function getLevelGoal(level: number) {
+  return LEVEL_BASE_GOAL + (level - 1) * LEVEL_GOAL_SCALING;
+}
 
 export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
   const titleAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
   const starAnims = useRef(STARS.map(() => new Animated.Value(0))).current;
 
   useFocusEffect(
     useCallback(() => {
+      storage.invalidateCache();
       storage.load().then(setPlayerData);
     }, [])
   );
 
   useEffect(() => {
-    // Title entrance
     Animated.spring(titleAnim, {
-      toValue: 1,
-      tension: 40,
-      friction: 8,
-      useNativeDriver: true,
+      toValue: 1, tension: 40, friction: 8, useNativeDriver: true,
     }).start();
 
-    // Pulse play button
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, useNativeDriver: true }),
@@ -54,29 +58,23 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
       ])
     ).start();
 
-    // Glow cycle
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 1500, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 1500, useNativeDriver: false }),
-      ])
-    ).start();
-
-    // Animate stars drifting down
+    // Stars: use translateY (pixel) — safe with useNativeDriver: true
     starAnims.forEach((anim, i) => {
       const loop = () => {
         anim.setValue(0);
         Animated.timing(anim, {
           toValue: 1,
-          duration: (STARS[i].speed * 20000) + 8000,
+          duration: STARS[i].duration,
           useNativeDriver: true,
         }).start(() => loop());
       };
-      setTimeout(() => loop(), i * 150);
+      setTimeout(() => loop(), STARS[i].delay);
     });
   }, []);
 
   const character = CHARACTERS.find(c => c.id === playerData?.selectedCharacter) ?? CHARACTERS[0];
+  const currentLevel = playerData?.currentLevel ?? 1;
+  const levelGoal = getLevelGoal(currentLevel);
 
   const handlePlay = () => {
     navigation.navigate('Game', { characterId: character.id });
@@ -86,38 +84,37 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* Animated star field */}
+      <LinearGradient colors={['#08081a', '#0d0d26', '#12122f']} style={StyleSheet.absoluteFill} />
+
+      {/* Neon grid lines */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {[0, 1, 2, 3, 4, 5].map(i => (
+          <View key={i} style={[styles.gridLine, { left: (i / 6) * SW }]} />
+        ))}
+      </View>
+
+      {/* Star field — using translateY, NOT top */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {STARS.map((star, i) => (
           <Animated.View
             key={star.id}
             style={{
               position: 'absolute',
-              left: `${star.x}%`,
-              top: starAnims[i].interpolate({
-                inputRange: [0, 1],
-                outputRange: [`${star.y}%`, `${star.y + 20}%`],
-              }),
+              left: star.x,
+              top: star.y,
               width: star.size,
               height: star.size,
               borderRadius: star.size / 2,
               backgroundColor: '#ffffff',
               opacity: star.opacity,
+              transform: [{
+                translateY: starAnims[i].interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, star.driftPx],
+                }),
+              }],
             }}
           />
-        ))}
-      </View>
-
-      {/* Background gradient */}
-      <LinearGradient
-        colors={['#08081a', '#0d0d26', '#12122f']}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Neon grid lines */}
-      <View style={styles.gridContainer} pointerEvents="none">
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <View key={i} style={[styles.gridLine, { left: `${(i / 6) * 100}%` }]} />
         ))}
       </View>
 
@@ -139,37 +136,40 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         </View>
 
         {/* Title */}
-        <Animated.View
-          style={{
-            opacity: titleAnim,
-            transform: [{ translateY: titleAnim.interpolate({ inputRange: [0, 1], outputRange: [-40, 0] }) }],
-          }}
-        >
+        <Animated.View style={{
+          opacity: titleAnim,
+          transform: [{ translateY: titleAnim.interpolate({ inputRange: [0, 1], outputRange: [-40, 0] }) }],
+        }}>
           <NeonText size={52} color={COLORS.neonCyan} style={styles.titleMain}>NEON</NeonText>
           <NeonText size={52} color={COLORS.neonPink} style={styles.titleSub}>RUSH</NeonText>
         </Animated.View>
 
-        {/* Selected character preview */}
-        <View style={styles.characterPreview}>
-          <Animated.View
-            style={[
-              styles.characterShape,
-              {
-                backgroundColor: character.color,
-                shadowColor: character.glowColor,
-                transform: [{ scale: pulseAnim }],
-              },
-            ]}
-          />
-          <NeonText size={13} color={character.color} style={styles.characterName}>
-            {character.name}
-          </NeonText>
+        {/* Level card */}
+        <View style={styles.levelCard}>
+          <View style={styles.levelCardLeft}>
+            <NeonText size={11} color={COLORS.textDim}>CURRENT LEVEL</NeonText>
+            <NeonText size={42} color={COLORS.neonYellow} style={styles.levelNum}>{currentLevel}</NeonText>
+          </View>
+          <View style={styles.levelCardRight}>
+            {/* Character shape */}
+            <View style={[styles.characterShape, {
+              backgroundColor: character.color,
+              shadowColor: character.glowColor,
+            }]} />
+            <NeonText size={11} color={character.color}>{character.name}</NeonText>
+          </View>
+        </View>
+
+        {/* Level goal */}
+        <View style={styles.goalBox}>
+          <NeonText size={11} color={COLORS.textDim}>LEVEL GOAL: RUN {levelGoal}m</NeonText>
+          <NeonText size={11} color={COLORS.textDim}>COLLECT COINS · SURVIVE · ADVANCE</NeonText>
         </View>
 
         {/* Play button */}
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
           <NeonButton
-            label="▶  PLAY"
+            label={`▶  PLAY LEVEL ${currentLevel}`}
             onPress={handlePlay}
             color={COLORS.neonCyan}
             size="lg"
@@ -180,14 +180,14 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         {/* Menu buttons */}
         <View style={styles.menuRow}>
           <NeonButton
-            label="SHOP"
+            label="🏪 SHOP"
             onPress={() => navigation.navigate('Shop')}
             color={COLORS.neonPink}
             size="sm"
             style={styles.menuBtn}
           />
           <NeonButton
-            label="SETTINGS"
+            label="⚙ SETTINGS"
             onPress={() => navigation.navigate('Settings')}
             color={COLORS.neonPurple}
             size="sm"
@@ -195,15 +195,13 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
           />
         </View>
 
-        {/* Best score banner */}
         {(playerData?.highScore ?? 0) > 0 && (
           <View style={styles.hsBanner}>
-            <NeonText size={12} color={COLORS.textDim}>PERSONAL BEST</NeonText>
+            <NeonText size={11} color={COLORS.textDim}>PERSONAL BEST</NeonText>
             <NeonText size={26} color={COLORS.neonYellow}>{playerData!.highScore.toLocaleString()}</NeonText>
           </View>
         )}
 
-        {/* Run count */}
         <NeonText size={11} color={COLORS.textDim} style={styles.runsText}>
           {(playerData?.totalRuns ?? 0)} RUNS COMPLETED
         </NeonText>
@@ -215,59 +213,48 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   content: { alignItems: 'center', paddingTop: 50, paddingBottom: 40, paddingHorizontal: 24 },
-  gridContainer: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
   gridLine: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: '#1a1a3a' },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 30, alignSelf: 'flex-end' },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24, alignSelf: 'flex-end' },
   statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#1a1a3a',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#2a2a4a',
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#1a1a3a', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: '#2a2a4a',
   },
   statIcon: { fontSize: 14 },
-  titleMain: {
-    textAlign: 'center',
-    fontWeight: '900',
-    lineHeight: 56,
-    letterSpacing: 8,
-  },
-  titleSub: {
-    textAlign: 'center',
-    fontWeight: '900',
-    lineHeight: 56,
-    letterSpacing: 8,
-    marginBottom: 20,
-  },
-  characterPreview: { alignItems: 'center', marginVertical: 24 },
-  characterShape: {
-    width: 56,
-    height: 72,
-    borderRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 20,
-    shadowOpacity: 1,
-    elevation: 12,
-    marginBottom: 8,
-  },
-  characterName: { letterSpacing: 2 },
-  playBtn: { width: 220, marginBottom: 20 },
-  menuRow: { flexDirection: 'row', gap: 16, marginBottom: 30 },
-  menuBtn: { flex: 1 },
-  hsBanner: {
-    alignItems: 'center',
+  titleMain: { textAlign: 'center', fontWeight: '900', lineHeight: 56, letterSpacing: 8 },
+  titleSub: { textAlign: 'center', fontWeight: '900', lineHeight: 56, letterSpacing: 8, marginBottom: 20 },
+  levelCard: {
+    flexDirection: 'row',
+    width: '100%',
     backgroundColor: '#1a1a3a',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.neonYellow + '44',
-    marginBottom: 16,
-    width: '100%',
+    padding: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  levelCardLeft: { gap: 2 },
+  levelNum: { fontWeight: '900', letterSpacing: 2 },
+  levelCardRight: { alignItems: 'center', gap: 6 },
+  characterShape: {
+    width: 40, height: 52, borderRadius: 8,
+    shadowOffset: { width: 0, height: 0 }, shadowRadius: 14, shadowOpacity: 1, elevation: 8,
+  },
+  goalBox: {
+    alignItems: 'center', gap: 4,
+    marginBottom: 20,
+  },
+  playBtn: { width: 240, marginBottom: 20 },
+  menuRow: { flexDirection: 'row', gap: 16, marginBottom: 24 },
+  menuBtn: { flex: 1 },
+  hsBanner: {
+    alignItems: 'center', backgroundColor: '#1a1a3a', borderRadius: 12,
+    paddingVertical: 12, paddingHorizontal: 32,
+    borderWidth: 1, borderColor: COLORS.neonYellow + '44',
+    marginBottom: 16, width: '100%',
   },
   runsText: { letterSpacing: 2 },
 });

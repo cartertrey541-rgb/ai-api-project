@@ -33,18 +33,26 @@ export const SLOW_COIN_COLOR = '#00aaff';
 export const SLOW_COIN_GLOW = '#0055ff';
 
 export const INITIAL_SPEED = 2.5;
-export const SPEED_INCREMENT = 0.00015;  // very gentle continuous drift
 export const MAX_SPEED = 20;
 
-// Level system (Tetris-style)
-export const MAX_LEVEL = 15;
-export const SCORE_PER_LEVEL = 500;      // level up every 500 points
-export const SPEED_PER_LEVEL = 1.2;      // speed added per level
+// Discrete level system
+// Speed ramps from base → base+LEVEL_PROGRESS_BONUS over the course of each level
+export const LEVEL_BASE_SPEED_INCREMENT = 0.6;  // added per player level
+export const LEVEL_PROGRESS_BONUS = 4.0;        // extra speed gained by end of level
+export const LEVEL_BASE_GOAL = 80;              // metres to complete level 1
+export const LEVEL_GOAL_SCALING = 50;           // extra metres each level
+export const MAX_PLAYER_LEVEL = 30;             // levels never cap out
 
-// Spawn intervals shrink as level rises
-export const SPAWN_INTERVAL_MIN = 1800;  // level 1 (very spaced out)
+// Spawn intervals shrink as player level rises
+export const SPAWN_INTERVAL_MIN = 1800;
 export const SPAWN_INTERVAL_MAX = 2800;
-export const SPAWN_INTERVAL_REDUCTION = 70; // ms removed per level
+export const SPAWN_INTERVAL_REDUCTION = 55;     // ms removed per player level
+
+// Legacy — kept for compatibility
+export const MAX_LEVEL = 30;
+export const SCORE_PER_LEVEL = 500;
+export const SPEED_PER_LEVEL = 1.2;
+export const SPEED_INCREMENT = 0.00015;
 export const COIN_SPAWN_INTERVAL = 600;
 export const POWERUP_SPAWN_CHANCE = 0.12;
 

@@ -5,6 +5,7 @@ export interface PlayerData {
   totalCoins: number;
   gems: number;
   totalRuns: number;
+  currentLevel: number;
   selectedCharacter: string;
   unlockedCharacters: string[];
   completedAchievements: string[];
@@ -24,6 +25,7 @@ const DEFAULT_DATA: PlayerData = {
   totalCoins: 0,
   gems: 10,
   totalRuns: 0,
+  currentLevel: 1,
   selectedCharacter: 'nova',
   unlockedCharacters: ['nova'],
   completedAchievements: [],
@@ -100,6 +102,13 @@ class StorageService {
   async addGems(amount: number): Promise<PlayerData> {
     const current = await this.load();
     return this.save({ gems: current.gems + amount });
+  }
+
+  async advanceLevel(): Promise<number> {
+    const current = await this.load();
+    const nextLevel = current.currentLevel + 1;
+    await this.save({ currentLevel: nextLevel });
+    return nextLevel;
   }
 
   async unlockCharacter(characterId: string, currency: 'coins' | 'gems', cost: number): Promise<boolean> {

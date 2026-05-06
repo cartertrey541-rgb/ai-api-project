@@ -72,6 +72,26 @@ class AdService {
     return AD_IDS.rewarded;
   }
 
+  /** Shows interstitial at the end of every level — no frequency gate. */
+  async showLevelEndAd(): Promise<void> {
+    if (!this.adsEnabled) return;
+    console.log('[AdService] Level-end interstitial triggered');
+    // ── Uncomment after running npx expo prebuild ──────────────────────────
+    // return new Promise<void>(resolve => {
+    //   const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
+    //     interstitial.show();
+    //     unsubLoaded();
+    //     resolve();
+    //   });
+    //   const unsubError = interstitial.addAdEventListener(AdEventType.ERROR, () => {
+    //     unsubError();
+    //     resolve();
+    //   });
+    //   interstitial.load();
+    // });
+    // ─────────────────────────────────────────────────────────────────────
+  }
+
   /** Shows interstitial every INTERSTITIAL_FREQUENCY deaths. */
   async showInterstitialIfReady(): Promise<void> {
     if (!this.adsEnabled) return;
