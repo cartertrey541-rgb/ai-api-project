@@ -436,7 +436,9 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   const progressPct = Math.min(100, (gs.distance / gs.levelGoal) * 100);
 
   return (
-    <View style={styles.container} {...panResponder.panHandlers}>
+    <View style={StyleSheet.absoluteFill}>
+      {/* Game canvas — pan responder only covers the play area */}
+      <View style={styles.container} {...panResponder.panHandlers}>
       <StatusBar hidden />
 
       <LinearGradient colors={['#08081a', '#0d0d26']} style={StyleSheet.absoluteFill} />
@@ -560,8 +562,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
           backgroundColor: progressPct >= 99 ? COLORS.neonYellow : COLORS.neonCyan,
         }]} />
       </View>
+      </View>{/* end game canvas */}
 
-      {/* Pause modal */}
+      {/* ── Modals live OUTSIDE the pan responder so buttons are always tappable ── */}
+
       {showPauseModal && (
         <View style={styles.modalOverlay}>
           <LinearGradient colors={['#0d0d26', '#12122f']} style={styles.modal}>
@@ -575,7 +579,6 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* Revive / Game over modal */}
       {showReviveModal && (
         <View style={styles.modalOverlay}>
           <LinearGradient colors={['#0d0d26', '#12122f']} style={styles.modal}>
@@ -598,7 +601,6 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* Level complete modal */}
       {showLevelCompleteModal && (
         <View style={styles.modalOverlay}>
           <LinearGradient colors={['#0d0d26', '#12122f']} style={styles.modal}>
