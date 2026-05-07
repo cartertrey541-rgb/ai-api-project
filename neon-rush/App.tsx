@@ -14,8 +14,11 @@ export default function App() {
   const onReady = useCallback(async () => {
     try {
       const data = await storage.load();
+      // Initialize AdMob SDK and begin preloading ads
+      await adService.initialize();
       adService.setAdsEnabled(!data.removeAds);
-      await iapService.init();
+      // Init IAP non-blocking — fails gracefully outside Play Store
+      iapService.init().catch(() => {});
     } catch (e) {
       console.warn('App init error:', e);
     } finally {

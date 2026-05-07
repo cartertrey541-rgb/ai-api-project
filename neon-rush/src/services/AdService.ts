@@ -1,54 +1,44 @@
 /**
  * AdService — Google Mobile Ads integration (react-native-google-mobile-ads).
  *
- * Setup steps:
- *   1. npm install react-native-google-mobile-ads
- *   2. npx expo prebuild  (generates native Android files)
- *   3. Add your AdMob App ID to app.json plugins (see below — marked with TODO)
- *   4. Build: npx expo run:android  OR  eas build --platform android
- *
- * Your AdMob App ID is at:
- *   AdMob Console → Apps → [Neon Rush] → App settings → App ID
- *   It looks like:  ca-app-pub-1994019770206439~XXXXXXXXXX
+ * Setup (one-time, on your Windows machine):
+ *   1. cd neon-rush && npm install react-native-google-mobile-ads
+ *   2. Fill in YOUR AdMob App ID in app.json → plugins → react-native-google-mobile-ads → androidAppId
+ *      (AdMob Console → Apps → Neon Rush → App settings → App ID)
+ *   3. npx expo prebuild --clean
+ *   4. eas build --platform android --profile production
  */
 
-// ─── Your live Ad Unit IDs ────────────────────────────────────────────────────
-const BANNER_ID      = 'ca-app-pub-1994019770206439/REPLACE_WITH_BANNER_UNIT_ID';
-const INTERSTITIAL_ID = 'ca-app-pub-1994019770206439/4253918857';
-const REWARDED_ID     = 'ca-app-pub-1994019770206439/5567000527';
+import {
+  InterstitialAd,
+  RewardedAd,
+  AdEventType,
+  RewardedAdEventType,
+  MobileAds,
+} from 'react-native-google-mobile-ads';
 
-// Use Google's test IDs during development (swap to live IDs above for production)
-const DEV_BANNER_ID      = 'ca-app-pub-3940256099942544/6300978111';
-const DEV_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
-const DEV_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
+// ─── Ad Unit IDs ──────────────────────────────────────────────────────────────
+const LIVE_INTERSTITIAL_ID = 'ca-app-pub-1994019770206439/4253918857';
+const LIVE_REWARDED_ID     = 'ca-app-pub-1994019770206439/5567000527';
 
-const IS_PRODUCTION = false; // ← set true before submitting to Play Store
+const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
+const TEST_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
+
+// Automatically uses live IDs in production builds, test IDs in Expo Go / dev
+const IS_PRODUCTION = !__DEV__;
 
 const AD_IDS = {
-  banner:       IS_PRODUCTION ? BANNER_ID       : DEV_BANNER_ID,
-  interstitial: IS_PRODUCTION ? INTERSTITIAL_ID  : DEV_INTERSTITIAL_ID,
-  rewarded:     IS_PRODUCTION ? REWARDED_ID      : DEV_REWARDED_ID,
+  interstitial: IS_PRODUCTION ? LIVE_INTERSTITIAL_ID : TEST_INTERSTITIAL_ID,
+  rewarded:     IS_PRODUCTION ? LIVE_REWARDED_ID     : TEST_REWARDED_ID,
 };
 
-// ─── react-native-google-mobile-ads integration ───────────────────────────────
-// Uncomment the block below once `react-native-google-mobile-ads` is installed
-// and `npx expo prebuild` has been run.
-//
-// import {
-//   InterstitialAd,
-//   RewardedAd,
-//   AdEventType,
-//   RewardedAdEventType,
-//   MobileAds,
-// } from 'react-native-google-mobile-ads';
-//
-// const interstitial = InterstitialAd.createForAdRequest(AD_IDS.interstitial, {
-//   requestNonPersonalizedAdsOnly: true,
-// });
-// const rewarded = RewardedAd.createForAdRequest(AD_IDS.rewarded, {
-//   requestNonPersonalizedAdsOnly: true,
-// });
-// ─────────────────────────────────────────────────────────────────────────────
+// Created at module load so ads can begin preloading immediately
+const interstitial = InterstitialAd.createForAdRequest(AD_IDS.interstitial, {
+  requestNonPersonalizedAdsOnly: true,
+});
+const rewarded = RewardedAd.createForAdRequest(AD_IDS.rewarded, {
+  requestNonPersonalizedAdsOnly: true,
+});
 
 let interstitialCount = 0;
 const INTERSTITIAL_FREQUENCY = 3;
@@ -56,40 +46,45 @@ const INTERSTITIAL_FREQUENCY = 3;
 class AdService {
   private adsEnabled = true;
 
+  /** Call once from App.tsx after checking removeAds preference. */
+  async initialize(): Promise<void> {
+    await MobileAds().initialize();
+    if (this.adsEnabled) {
+      interstitial.load();
+      rewarded.load();
+    }
+  }
+
   setAdsEnabled(enabled: boolean): void {
     this.adsEnabled = enabled;
+    if (enabled) {
+      interstitial.load();
+      rewarded.load();
+    }
   }
 
-  getBannerId(): string {
-    return AD_IDS.banner;
-  }
-
-  getInterstitialId(): string {
-    return AD_IDS.interstitial;
-  }
-
-  getRewardedId(): string {
-    return AD_IDS.rewarded;
-  }
-
-  /** Shows interstitial at the end of every level — no frequency gate. */
+  /** Shows interstitial at the end of EVERY level. */
   async showLevelEndAd(): Promise<void> {
     if (!this.adsEnabled) return;
     console.log('[AdService] Level-end interstitial triggered');
-    // ── Uncomment after running npx expo prebuild ──────────────────────────
-    // return new Promise<void>(resolve => {
-    //   const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
-    //     interstitial.show();
-    //     unsubLoaded();
-    //     resolve();
-    //   });
-    //   const unsubError = interstitial.addAdEventListener(AdEventType.ERROR, () => {
-    //     unsubError();
-    //     resolve();
-    //   });
-    //   interstitial.load();
-    // });
-    // ─────────────────────────────────────────────────────────────────────
+    return new Promise<void>(resolve => {
+      const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
+        interstitial.show();
+        unsubLoaded();
+        interstitial.load(); // preload next
+        resolve();
+      });
+      const unsubError = interstitial.addAdEventListener(AdEventType.ERROR, (error) => {
+        console.warn('[AdService] Interstitial error:', error);
+        unsubError();
+        resolve();
+      });
+      if (interstitial.loaded) {
+        interstitial.show();
+      } else {
+        interstitial.load();
+      }
+    });
   }
 
   /** Shows interstitial every INTERSTITIAL_FREQUENCY deaths. */
@@ -97,50 +92,41 @@ class AdService {
     if (!this.adsEnabled) return;
     interstitialCount++;
     if (interstitialCount % INTERSTITIAL_FREQUENCY !== 0) return;
-
-    console.log(`[AdService] Interstitial triggered (count ${interstitialCount})`);
-
-    // ── Uncomment after running npx expo prebuild ──────────────────────────
-    // return new Promise<void>(resolve => {
-    //   const unsubLoaded = interstitial.addAdEventListener(AdEventType.LOADED, () => {
-    //     interstitial.show();
-    //     unsubLoaded();
-    //     resolve();
-    //   });
-    //   const unsubError = interstitial.addAdEventListener(AdEventType.ERROR, () => {
-    //     unsubError();
-    //     resolve();
-    //   });
-    //   interstitial.load();
-    // });
-    // ─────────────────────────────────────────────────────────────────────
+    console.log(`[AdService] Death interstitial triggered (count ${interstitialCount})`);
+    return this.showLevelEndAd();
   }
 
   /** Shows a rewarded ad. Returns true when the reward is granted. */
   async showRewardedAd(): Promise<boolean> {
     if (!this.adsEnabled) return false;
-
     console.log('[AdService] Rewarded ad triggered');
-
-    // ── Uncomment after running npx expo prebuild ──────────────────────────
-    // return new Promise<boolean>(resolve => {
-    //   const unsubEarned = rewarded.addAdEventListener(
-    //     RewardedAdEventType.EARNED_REWARD,
-    //     () => { unsubEarned(); resolve(true); }
-    //   );
-    //   const unsubLoaded = rewarded.addAdEventListener(
-    //     RewardedAdEventType.LOADED,
-    //     () => { unsubLoaded(); rewarded.show(); }
-    //   );
-    //   const unsubError = rewarded.addAdEventListener(AdEventType.ERROR, () => {
-    //     unsubError();
-    //     resolve(false);
-    //   });
-    //   rewarded.load();
-    // });
-    // ─────────────────────────────────────────────────────────────────────
-
-    return true; // ← simulated grant; remove this line when using the real SDK
+    return new Promise<boolean>(resolve => {
+      const unsubEarned = rewarded.addAdEventListener(
+        RewardedAdEventType.EARNED_REWARD,
+        () => {
+          unsubEarned();
+          rewarded.load(); // preload next
+          resolve(true);
+        },
+      );
+      const unsubLoaded = rewarded.addAdEventListener(
+        RewardedAdEventType.LOADED,
+        () => {
+          unsubLoaded();
+          rewarded.show();
+        },
+      );
+      const unsubError = rewarded.addAdEventListener(AdEventType.ERROR, (error) => {
+        console.warn('[AdService] Rewarded ad error:', error);
+        unsubError();
+        resolve(false);
+      });
+      if (rewarded.loaded) {
+        rewarded.show();
+      } else {
+        rewarded.load();
+      }
+    });
   }
 }
 

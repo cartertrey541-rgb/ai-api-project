@@ -1,30 +1,47 @@
 /**
- * IAPService - manages in-app purchases via react-native-iap.
+ * IAPService - manages in-app purchases via react-native-iap v12.
  *
- * Integration notes:
- *   1. Install: expo install react-native-iap
- *   2. Run: npx expo prebuild
- *   3. Add BILLING permission in app.json android.permissions
- *   4. Register product IDs in Google Play Console
- *   5. Call IAPService.init() in App.tsx
- *
- * Product IDs must match exactly what is registered in Google Play.
+ * Setup (one-time, on your Windows machine):
+ *   1. cd neon-rush && npm install react-native-iap
+ *   2. npx expo prebuild --clean
+ *   3. Register these product IDs in Google Play Console → Monetize → Products:
+ *        gems_30, gems_80, gems_200, gems_500  (one-time, consumable)
+ *        remove_ads                            (one-time, non-consumable)
+ *        vip_monthly                           (subscription)
+ *   4. Set up a Google Merchant account and link it in Play Console
+ *   5. Publish app to at least Internal Testing track before testing IAP
  */
 
+import {
+  initConnection,
+  endConnection,
+  getProducts,
+  requestPurchase,
+  getAvailablePurchases,
+  finishTransaction,
+  type ProductPurchase,
+} from 'react-native-iap';
 import { IAP_PRODUCTS } from '../constants';
 import { storage } from './StorageService';
 
 export type PurchaseResult = 'success' | 'cancelled' | 'error';
 
+const PRODUCT_SKUS = IAP_PRODUCTS.map(p => p.id);
+
 class IAPService {
   private initialized = false;
 
   async init(): Promise<void> {
-    // With react-native-iap:
-    // await RNIap.initConnection();
-    // const products = await RNIap.getProducts({ skus: IAP_PRODUCTS.map(p => p.id) });
-    this.initialized = true;
-    console.log('[IAPService] Initialized (stub mode)');
+    try {
+      await initConnection();
+      // Warm up product list so prices display instantly in Shop
+      await getProducts({ skus: PRODUCT_SKUS });
+      this.initialized = true;
+      console.log('[IAPService] Initialized');
+    } catch (e) {
+      console.warn('[IAPService] Init failed (expected outside Play Store):', e);
+      this.initialized = true; // mark init'd so purchase attempts still run
+    }
   }
 
   async purchase(productId: string): Promise<PurchaseResult> {
@@ -33,20 +50,16 @@ class IAPService {
     const product = IAP_PRODUCTS.find(p => p.id === productId);
     if (!product) return 'error';
 
-    console.log(`[IAPService] Would purchase: ${productId}`);
-    // With react-native-iap:
-    // try {
-    //   await RNIap.requestPurchase({ sku: productId });
-    //   await this.handleSuccessfulPurchase(productId);
-    //   return 'success';
-    // } catch (e: any) {
-    //   if (e.code === 'E_USER_CANCELLED') return 'cancelled';
-    //   return 'error';
-    // }
-
-    // Simulated for development — grant the items:
-    await this.handleSuccessfulPurchase(productId);
-    return 'success';
+    try {
+      console.log(`[IAPService] Requesting purchase: ${productId}`);
+      await requestPurchase({ skus: [productId] });
+      await this.handleSuccessfulPurchase(productId);
+      return 'success';
+    } catch (e: any) {
+      if (e.code === 'E_USER_CANCELLED') return 'cancelled';
+      console.warn('[IAPService] Purchase error:', e);
+      return 'error';
+    }
   }
 
   private async handleSuccessfulPurchase(productId: string): Promise<void> {
@@ -65,18 +78,31 @@ class IAPService {
     storage.invalidateCache();
   }
 
+  /** Acknowledges a purchase (required by Play Store within 3 days). */
+  async acknowledgePurchase(purchase: ProductPurchase): Promise<void> {
+    try {
+      await finishTransaction({ purchase, isConsumable: true });
+    } catch (e) {
+      console.warn('[IAPService] finishTransaction error:', e);
+    }
+  }
+
   async restorePurchases(): Promise<void> {
-    console.log('[IAPService] Would restore purchases here');
-    // With react-native-iap:
-    // const purchases = await RNIap.getAvailablePurchases();
-    // for (const p of purchases) {
-    //   await this.handleSuccessfulPurchase(p.productId);
-    // }
+    try {
+      const purchases = await getAvailablePurchases();
+      for (const p of purchases) {
+        await this.handleSuccessfulPurchase(p.productId);
+      }
+      console.log(`[IAPService] Restored ${purchases.length} purchase(s)`);
+    } catch (e) {
+      console.warn('[IAPService] Restore error:', e);
+    }
   }
 
   async destroy(): Promise<void> {
-    // With react-native-iap:
-    // await RNIap.endConnection();
+    try {
+      await endConnection();
+    } catch (_) {}
   }
 }
 

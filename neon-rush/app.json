@@ -4,8 +4,14 @@
     "slug": "neon-rush",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "backgroundColor": "#0a0a1a",
+    "backgroundColor": "#08081a",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#08081a"
+    },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
@@ -14,13 +20,37 @@
     "android": {
       "package": "com.neonrush.game",
       "versionCode": 1,
-      "permissions": ["com.android.vending.BILLING"]
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#08081a"
+      },
+      "permissions": ["com.android.vending.BILLING"],
+      "targetSdkVersion": 34
     },
     "plugins": [
       "expo-font",
-      "expo-av"
+      "expo-av",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "TODO_REPLACE_WITH_YOUR_ADMOB_APP_ID"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0"
+          }
+        }
+      ]
     ],
     "extra": {
+      "eas": {
+        "projectId": "TODO_REPLACE_WITH_EAS_PROJECT_ID"
+      },
       "admobPublisherId": "ca-app-pub-1994019770206439",
       "admobInterstitialIdAndroid": "ca-app-pub-1994019770206439/4253918857",
       "admobRewardedIdAndroid": "ca-app-pub-1994019770206439/5567000527"
