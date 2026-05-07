@@ -115,7 +115,7 @@ function makeInitialState(): GameState {
     speed: INITIAL_SPEED, distance: 0,
     playerLevel: 1, levelGoal: LEVEL_BASE_GOAL, levelComplete: false,
     activePowerUps: { shield: 0, magnet: 0, multiplier: 0, slow: 0 },
-    isRunning: true, isPaused: false, gameOver: false,
+    isRunning: false, isPaused: false, gameOver: false,
     canRevive: true, hasRevived: false,
     obstacleTimer: 0, nextObstacleIn: 1200, coinTimer: 0,
     bgOffset: 0, entityId: 0,
@@ -236,8 +236,8 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     gs.score = Math.floor(gs.distance) + gs.coinsEarned * 2;
     gs.bgOffset = (gs.bgOffset + speed * delta * 0.04) % SCREEN_H;
 
-    // Level complete detection
-    if (gs.distance >= levelGoal && !gs.levelComplete && !gs.gameOver) {
+    // Level complete detection — levelGoal > 0 guards against uninitialised state
+    if (levelGoal > 0 && gs.distance >= levelGoal && !gs.levelComplete && !gs.gameOver) {
       gs.levelComplete = true;
       gs.isRunning = false;
       triggerHaptic('heavy');
@@ -383,9 +383,10 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
   useEffect(() => {
     storage.load().then(data => {
       hapticsEnabled.current = data.hapticsEnabled;
-      const lv = data.currentLevel;
+      const lv = Math.max(1, data.currentLevel ?? 1);
       gsRef.current.playerLevel = lv;
       gsRef.current.levelGoal = LEVEL_BASE_GOAL + (lv - 1) * LEVEL_GOAL_SCALING;
+      gsRef.current.isRunning = true; // only start physics after level goal is confirmed
     });
     rafRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(rafRef.current);
