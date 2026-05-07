@@ -17,14 +17,14 @@ interface Props { navigation: HomeNavProp; }
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
-// Stars use pixel values so translateY works with useNativeDriver: true
+// Stars positioned purely via transform (no top/left on Animated.View)
 const STARS = Array.from({ length: 50 }, (_, i) => ({
   id: i,
   x: Math.random() * SW,
   y: Math.random() * SH,
   size: Math.random() * 2.5 + 0.5,
   opacity: Math.random() * 0.7 + 0.3,
-  driftPx: (Math.random() * 0.12 + 0.05) * SH,
+  yEnd: Math.random() * SH + (Math.random() * 0.12 + 0.05) * SH,
   duration: Math.random() * 12000 + 8000,
   delay: Math.random() * 4000,
 }));
@@ -37,7 +37,7 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
   const titleAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const starAnims = useRef(STARS.map(() => new Animated.Value(0))).current;
+  const starAnims = useRef(STARS.map(s => new Animated.Value(s.y))).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -58,12 +58,12 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
       ])
     ).start();
 
-    // Stars: use translateY (pixel) — safe with useNativeDriver: true
+    // Stars: animate translateY only — no layout props on Animated.View
     starAnims.forEach((anim, i) => {
       const loop = () => {
-        anim.setValue(0);
+        anim.setValue(STARS[i].y);
         Animated.timing(anim, {
-          toValue: 1,
+          toValue: STARS[i].yEnd,
           duration: STARS[i].duration,
           useNativeDriver: true,
         }).start(() => loop());
@@ -93,29 +93,24 @@ export const HomeScreen: React.FC<Props> = ({ navigation }) => {
         ))}
       </View>
 
-      {/* Star field — plain View owns left/top; Animated.View owns only transform */}
+      {/* Stars — Animated.View has ONLY transform+opacity, zero layout props */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {STARS.map((star, i) => (
-          <View
+          <Animated.View
             key={star.id}
-            style={{ position: 'absolute', left: star.x, top: star.y }}
-          >
-            <Animated.View
-              style={{
-                width: star.size,
-                height: star.size,
-                borderRadius: star.size / 2,
-                backgroundColor: '#ffffff',
-                opacity: star.opacity,
-                transform: [{
-                  translateY: starAnims[i].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, star.driftPx],
-                  }),
-                }],
-              }}
-            />
-          </View>
+            style={{
+              position: 'absolute',
+              width: star.size,
+              height: star.size,
+              borderRadius: star.size / 2,
+              backgroundColor: '#ffffff',
+              opacity: star.opacity,
+              transform: [
+                { translateX: star.x },
+                { translateY: starAnims[i] },
+              ],
+            }}
+          />
         ))}
       </View>
 
