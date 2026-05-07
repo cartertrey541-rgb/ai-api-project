@@ -232,8 +232,8 @@ export const GameScreen: React.FC<Props> = ({ navigation, route }) => {
     const spawnMin = Math.max(600, SPAWN_INTERVAL_MIN - (playerLevel - 1) * SPAWN_INTERVAL_REDUCTION);
     const spawnMax = Math.max(900, SPAWN_INTERVAL_MAX - (playerLevel - 1) * SPAWN_INTERVAL_REDUCTION);
 
-    gs.distance += speed * delta * 0.05;
-    gs.score = Math.floor(gs.distance) + gs.coinsEarned * 2;
+    gs.distance += speed * delta * 0.0005;
+    gs.score = Math.floor(gs.distance * 100) + gs.coinsEarned * 5;
     gs.bgOffset = (gs.bgOffset + speed * delta * 0.04) % SCREEN_H;
 
     // Level complete detection — levelGoal > 0 guards against uninitialised state
